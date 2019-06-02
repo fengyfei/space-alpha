@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,14 +14,14 @@ import (
 var (
 	yuque = make(map[string]string)
 
-	// list cache
-	listRecode = make(map[string]string)
+	// listRecode
+	lr sync.Map
 
-	// detail cache
-	detailRecode = make(map[string](map[string]string))
+	// detailRecode
+	dr sync.Map
 
-	// classify cache
-	classifyRecode = make(map[string]string)
+	// repoRecode
+	rr sync.Map
 
 	// ListClient -
 	ListClient *http.Client
@@ -30,13 +32,6 @@ var (
 	// ClassifyClient -
 	ClassifyClient *http.Client
 )
-
-func main() {
-	router := gin.Default()
-
-	RegisterRouter(router)
-	router.Run()
-}
 
 // RegisterRouter -
 func RegisterRouter(r gin.IRouter) {
@@ -85,20 +80,29 @@ func getList(c *gin.Context) {
 		c.JSON(http.StatusNotAcceptable, gin.H{"status": http.StatusNotAcceptable})
 		return
 	}
+	fmt.Println(string(body))
 
 	check := bytes.Contains(body, []byte("ERROR"))
 	if check {
+		fmt.Println("2222")
 		log.Println("Requst Failed")
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "Details": listRecode[list.RepoID]})
+		val, ok := lr.Load(list.RepoID)
+		if !ok {
+			c.JSON(http.StatusRequestTimeout, gin.H{"status": http.StatusRequestTimeout})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "Details": val})
 		return
 	}
-
-	_, isPresent := listRecode[list.RepoID]
-	if !isPresent {
-		listRecode[list.RepoID] = string(body)
+	fmt.Println("111")
+	val, ok := lr.Load(list.RepoID)
+	fmt.Println(ok, "----")
+	if !ok {
+		lr.Store(list.RepoID, string(body))
 	}
-
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "List": listRecode[list.RepoID]})
+	val, ok = lr.Load(list.RepoID)
+	fmt.Println(val, ok, "====")
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "List": val})
 }
 
 func getDetails(c *gin.Context) {
@@ -124,7 +128,7 @@ func getDetails(c *gin.Context) {
 		return
 	}
 
-	url := "http://127.0.0.1:9090/list?RepoID=" + detail.RepoID + "&ID=" + detail.ID
+	url := "http://127.0.0.1:9090/detail?RepoID=" + detail.RepoID + "&ID=" + detail.ID
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		c.Error(err)
@@ -154,8 +158,13 @@ func getDetails(c *gin.Context) {
 	check := bytes.Contains(body, []byte("ERROR"))
 	if check {
 		log.Println("Requst Failed")
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "Details": detailRecode[detail.ID]})
-		return
+		val, ok := lr.Load(detail.RepoID)
+		if !ok {
+			c.JSON(http.StatusRequestTimeout, gin.H{"status": http.StatusRequestTimeout})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "Details": val})
+
 	}
 
 	info := bytes.Split(body, []byte("****"))
@@ -168,15 +177,16 @@ func getDetails(c *gin.Context) {
 		con[4]: string(info[9]),
 	}
 
-	_, isPresent := detailRecode[detail.ID]
-	if !isPresent {
-		detailRecode[detail.ID] = yuque
+	val, ok := dr.Load(detail.RepoID)
+	if !ok {
+		dr.Store(detail.ID, yuque)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "Details": detailRecode[detail.ID]})
+	val, ok = dr.Load(detail.RepoID)
+	fmt.Println(val, ok)
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "Detail": val})
 
 }
-
 func getRepo(c *gin.Context) {
 	var Repo struct {
 		RepoID string `json:"repoid"`
@@ -189,7 +199,7 @@ func getRepo(c *gin.Context) {
 		return
 	}
 
-	url := "http://127.0.0.1:9090/list?RepoID=" + Repo.RepoID
+	url := "http://127.0.0.1:9090/repo?RepoID=" + Repo.RepoID
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		c.Error(err)
@@ -219,7 +229,13 @@ func getRepo(c *gin.Context) {
 	check := bytes.Contains(body, []byte("ERROR"))
 	if check {
 		log.Println("Requst Failed")
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "Details": classifyRecode[Repo.RepoID]})
+
+		val, ok := rr.Load(Repo.RepoID)
+		if !ok {
+			c.JSON(http.StatusRequestTimeout, gin.H{"status": http.StatusRequestTimeout})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "Details": val})
 		return
 	}
 
