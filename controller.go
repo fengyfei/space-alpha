@@ -206,8 +206,9 @@ func callAPI(c *gin.Context, url string, obj interface{}) error {
 		return err
 	}
 
-	Token := c.Request.Header
-	request.Header.Add("X-Auth-Token", Token["X-Auth-Token"][0])
+	token := c.Request.Header
+	t := token.Get("X-Auth-Token")
+	request.Header.Add("X-Auth-Token", t)
 
 	client := &http.Client{}
 	response, err := client.Do(request)
