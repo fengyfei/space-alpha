@@ -2,11 +2,11 @@ package main
 
 var (
 	// DetailURL -
-	DetailURL = "https://yuque.yangchengkai99.now.sh/api/v1/yuque/details?RepoID=%s&ID=%s"
+	DetailURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/details?RepoID=%s&ID=%s"
 	// ListURL -
-	ListURL = "https://yuque.yangchengkai99.now.sh/api/v1/yuque/list?RepoID=%s"
+	ListURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/list?RepoID=%s"
 	// RepoURL -
-	RepoURL = "https://yuque.yangchengkai99.now.sh/api/v1/yuque/repo?GroupID=%s"
+	RepoURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/repo?GroupID=%s"
 )
 
 // ListRespon -
@@ -54,7 +54,6 @@ type ListRespon struct {
 			Serializer string `json:"_serializer"`
 		} `json:"data"`
 	} `json:"list"`
-	Status int `json:"status"`
 }
 
 // DetailRespon -
@@ -146,7 +145,6 @@ type DetailRespon struct {
 			Serializer        string `json:"_serializer"`
 		} `json:"data"`
 	} `json:"detail"`
-	Status int `json:"status"`
 }
 
 // RepoResp -
@@ -189,5 +187,4 @@ type RepoResp struct {
 			Serializer string `json:"_serializer"`
 		} `json:"data"`
 	} `json:"repo"`
-	Status int `json:"status"`
 }

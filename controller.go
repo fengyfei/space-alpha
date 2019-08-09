@@ -38,14 +38,14 @@ func RegisterRouter(r gin.IRouter) {
 
 func getList(c *gin.Context) {
 	var list struct {
-		RepoID string `json:"repoid"`
+		RepoID string `json:"repo_id" binding:"required"`
 	}
 
 	var RepoResp ListRespon
 
 	ListNow := time.Now()
 	interval := ListNow.Sub(ListTime)
-	timer, _ := time.ParseDuration("24h")
+	timer, _ := time.ParseDuration("1h")
 
 	err := c.ShouldBind(&list)
 	if err != nil {
@@ -91,8 +91,8 @@ func getList(c *gin.Context) {
 func getDetails(c *gin.Context) {
 	var (
 		detail struct {
-			RepoID string `json:"repoid"`
-			ID     string `json:"id"`
+			RepoID string `json:"repo_id" binding:"required"`
+			ID     string `json:"id"      binding:"required"`
 		}
 	)
 
@@ -100,7 +100,7 @@ func getDetails(c *gin.Context) {
 
 	DetailNow := time.Now()
 	interval := DetailNow.Sub(DetailTime)
-	timer, _ := time.ParseDuration("10s")
+	timer, _ := time.ParseDuration("1h")
 
 	err := c.ShouldBind(&detail)
 	if err != nil {
@@ -146,8 +146,8 @@ func getDetails(c *gin.Context) {
 func getRepo(c *gin.Context) {
 	var (
 		Group struct {
-			GroupID  string `json:"groupid"`
-			RepoName string `json:"reponame"`
+			GroupID  string `json:"group_id"   binding:"required"`
+			RepoName string `json:"repo_name"  binding:"required"`
 		}
 
 		Repo RepoResp
@@ -155,7 +155,7 @@ func getRepo(c *gin.Context) {
 
 	GroupNow := time.Now()
 	interval := GroupNow.Sub(GroupTime)
-	timer, _ := time.ParseDuration("24h")
+	timer, _ := time.ParseDuration("1h")
 
 	err := c.ShouldBind(&Group)
 	if err != nil {
