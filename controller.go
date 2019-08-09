@@ -68,6 +68,7 @@ func getList(c *gin.Context) {
 
 			lr.Store(list.RepoID, RepoResp)
 			ListTime = time.Now()
+
 			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": RepoResp})
 			return
 		}
@@ -146,8 +147,7 @@ func getDetails(c *gin.Context) {
 func getRepo(c *gin.Context) {
 	var (
 		Group struct {
-			GroupID  string `json:"group_id"   binding:"required"`
-			RepoName string `json:"repo_name"  binding:"required"`
+			GroupID string `json:"group_id"   binding:"required"`
 		}
 
 		Repo RepoResp
@@ -166,7 +166,7 @@ func getRepo(c *gin.Context) {
 
 	url := fmt.Sprintf(RepoURL, Group.GroupID)
 
-	val, ok := gr.Load(Group.RepoName)
+	val, ok := gr.Load(Group.GroupID)
 	if ok {
 		if interval > timer {
 			err := callAPI(c, url, &Repo)
@@ -175,7 +175,8 @@ func getRepo(c *gin.Context) {
 				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "group_repos": val})
 				return
 			}
-			gr.Store(Group.RepoName, Repo)
+
+			gr.Store(Group.GroupID, Repo)
 			GroupTime = time.Now()
 
 			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Repo})
@@ -193,7 +194,7 @@ func getRepo(c *gin.Context) {
 		return
 	}
 
-	gr.Store(Group.RepoName, Repo)
+	gr.Store(Group.GroupID, Repo)
 	GroupTime = time.Now()
 
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Repo})
