@@ -12,11 +12,12 @@ import (
 )
 
 var (
-	// listRecode
+	likeMap sync.Map
+	lastMap sync.Map
+	allMap  sync.Map
+
 	lr sync.Map
-	// detailRecode
 	dr sync.Map
-	// groupRecode
 	gr sync.Map
 
 	// ListTime -
@@ -30,7 +31,9 @@ var (
 // RegisterRouter -
 func RegisterRouter(r gin.IRouter) {
 
-	r.GET("/getlist", getList)
+	r.GET("/list/recommend", getRecommendList)
+	r.GET("/list/lastest", getLastestList)
+	r.GET("/list/all", getAllList)
 	r.GET("/getdetails", getDetails)
 	r.GET("/getrepo", getRepo)
 
@@ -144,13 +147,16 @@ func getDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "details": DeResp})
 
 }
+
 func getRepo(c *gin.Context) {
 	var (
 		Group struct {
-			GroupID string `json:"group_id"   binding:"required"`
+			GroupID string `json:"group_id" binding:"required"`
 		}
 
-		Repo RepoResp
+		Repo  RepoResp
+		Resp  RespRepo
+		Resps []RespRepo
 	)
 
 	GroupNow := time.Now()
@@ -176,10 +182,16 @@ func getRepo(c *gin.Context) {
 				return
 			}
 
-			gr.Store(Group.GroupID, Repo)
+			for _, v := range Repo.Repo.Data {
+				Resp.ID = v.ID
+				Resp.Name = v.Name
+				Resps = append(Resps, Resp)
+			}
+
+			gr.Store(Group.GroupID, Resps)
 			GroupTime = time.Now()
 
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Repo})
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Resps})
 			return
 		}
 
@@ -194,10 +206,209 @@ func getRepo(c *gin.Context) {
 		return
 	}
 
-	gr.Store(Group.GroupID, Repo)
+	for _, v := range Repo.Repo.Data {
+		Resp.ID = v.ID
+		Resp.Name = v.Name
+		Resps = append(Resps, Resp)
+	}
+
+	gr.Store(Group.GroupID, Resps)
 	GroupTime = time.Now()
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Repo})
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Resps})
+}
+
+func getRecommendList(c *gin.Context) {
+	var (
+		RepoResp ListRespon
+		Resp     RespRecommendList
+		Resps    []RespRecommendList
+	)
+
+	ListNow := time.Now()
+	interval := ListNow.Sub(ListTime)
+	timer, _ := time.ParseDuration("1h")
+
+	val, ok := likeMap.Load(ArticleRepoID)
+	if ok {
+		if interval > timer {
+			err := callAPI(c, RecommendListURL, &RepoResp)
+			if err != nil {
+				c.Error(err)
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "like_lists": val})
+				return
+			}
+
+			for _, v := range RepoResp.List.Data {
+				if v.LikesCount > 0 && v.Status > 0 {
+					Resp.Title = v.Title
+					Resp.Cover = v.Cover
+					Resp.LikesCount = v.LikesCount
+					Resp.Description = v.CustomDescription
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			likeMap.Store(ArticleRepoID, Resps)
+			ListTime = time.Now()
+
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "like_lists": Resps})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "like_lists": val})
+		return
+	}
+
+	err := callAPI(c, RecommendListURL, &RepoResp)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
+		return
+	}
+
+	for _, v := range RepoResp.List.Data {
+		if v.LikesCount > 0 && v.Status > 0 {
+			Resp.Title = v.Title
+			Resp.Cover = v.Cover
+			Resp.LikesCount = v.LikesCount
+			Resp.Description = v.Description
+			Resps = append(Resps, Resp)
+		}
+	}
+
+	likeMap.Store(ArticleRepoID, Resps)
+	ListTime = time.Now()
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "like_lists": Resps})
+}
+
+func getLastestList(c *gin.Context) {
+	var (
+		RepoResp ListRespon
+		Resp     RespLastestList
+		Resps    []RespLastestList
+	)
+
+	ListNow := time.Now()
+	interval := ListNow.Sub(ListTime)
+	timer, _ := time.ParseDuration("1h")
+
+	val, ok := lastMap.Load(ArticleRepoID)
+	if ok {
+		if interval > timer {
+			err := callAPI(c, RecommendListURL, &RepoResp)
+			if err != nil {
+				c.Error(err)
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "last_lists": val})
+				return
+			}
+
+			for _, v := range RepoResp.List.Data {
+				t := ListNow.Sub(v.PublishedAt)
+				if t < Lastest && v.Status > 0 {
+					Resp.Title = v.Title
+					Resp.Cover = v.Cover
+					Resp.Date = v.PublishedAt
+					Resp.Description = v.Description
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			lastMap.Store(ArticleRepoID, Resps)
+			ListTime = time.Now()
+
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": val})
+		return
+	}
+
+	err := callAPI(c, RecommendListURL, &RepoResp)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
+		return
+	}
+
+	for _, v := range RepoResp.List.Data {
+		t := ListNow.Sub(v.PublishedAt)
+		if t < Lastest && v.Status > 0 {
+			Resp.Title = v.Title
+			Resp.Cover = v.Cover
+			Resp.Date = v.PublishedAt
+			Resp.Description = v.Description
+			Resps = append(Resps, Resp)
+		}
+	}
+
+	lastMap.Store(ArticleRepoID, Resps)
+	ListTime = time.Now()
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
+}
+
+func getAllList(c *gin.Context) {
+	var (
+		RepoResp ListRespon
+		Resp     RespRepo
+		Resps    []RespRepo
+	)
+
+	ListNow := time.Now()
+	interval := ListNow.Sub(ListTime)
+	timer, _ := time.ParseDuration("1h")
+
+	val, ok := allMap.Load(ArticleRepoID)
+	if ok {
+		if interval > timer {
+			err := callAPI(c, RecommendListURL, &RepoResp)
+			if err != nil {
+				c.Error(err)
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "all_lists": val})
+				return
+			}
+
+			for _, v := range RepoResp.List.Data {
+				if v.Status > 0 {
+					Resp.ID = v.ID
+					Resp.Name = v.Title
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			allMap.Store(ArticleRepoID, Resps)
+			ListTime = time.Now()
+
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "all_lists": Resps})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "all_lists": val})
+		return
+	}
+
+	err := callAPI(c, RecommendListURL, &RepoResp)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
+		return
+	}
+
+	for _, v := range RepoResp.List.Data {
+		if v.Status > 0 {
+			Resp.ID = v.ID
+			Resp.Name = v.Title
+			Resps = append(Resps, Resp)
+		}
+	}
+
+	allMap.Store(ArticleRepoID, Resps)
+	ListTime = time.Now()
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "all_lists": Resps})
 }
 
 func callAPI(c *gin.Context, url string, obj interface{}) error {
@@ -207,8 +418,7 @@ func callAPI(c *gin.Context, url string, obj interface{}) error {
 		return err
 	}
 
-	token := c.Request.Header
-	t := token.Get("X-Auth-Token")
+	t := c.Request.Header.Get("X-Auth-Token")
 	request.Header.Add("X-Auth-Token", t)
 
 	client := &http.Client{}
