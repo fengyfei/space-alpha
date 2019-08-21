@@ -12,42 +12,31 @@ import (
 )
 
 var (
-	likeMap sync.Map
-	lastMap sync.Map
-	allMap  sync.Map
+	likeMap, lastMap, allMap, lr, gr, dr sync.Map
 
-	lr sync.Map
-	dr sync.Map
-	gr sync.Map
-
-	// ListTime -
-	ListTime time.Time
-	// DetailTime -
-	DetailTime time.Time
-	// GroupTime -
-	GroupTime time.Time
+	listTime, detailTime, groupTime, likeListTime, lastListTime, allListTime time.Time
 )
 
 // RegisterRouter -
 func RegisterRouter(r gin.IRouter) {
-
 	r.GET("/list/recommend", getRecommendList)
 	r.GET("/list/lastest", getLastestList)
 	r.GET("/list/all", getAllList)
 	r.GET("/getdetails", getDetails)
 	r.GET("/getrepo", getRepo)
-
 }
 
 func getList(c *gin.Context) {
-	var list struct {
-		RepoID string `json:"repo_id" binding:"required"`
-	}
+	var (
+		list struct {
+			RepoID string `json:"repo_id" binding:"required"`
+		}
 
-	var RepoResp ListRespon
+		RepoResp ListRespon
+	)
 
 	ListNow := time.Now()
-	interval := ListNow.Sub(ListTime)
+	interval := ListNow.Sub(listTime)
 	timer, _ := time.ParseDuration("1h")
 
 	err := c.ShouldBind(&list)
@@ -70,7 +59,7 @@ func getList(c *gin.Context) {
 			}
 
 			lr.Store(list.RepoID, RepoResp)
-			ListTime = time.Now()
+			listTime = time.Now()
 
 			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": RepoResp})
 			return
@@ -88,7 +77,8 @@ func getList(c *gin.Context) {
 	}
 
 	lr.Store(list.RepoID, RepoResp)
-	ListTime = time.Now()
+	listTime = time.Now()
+
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": RepoResp})
 }
 
@@ -98,12 +88,12 @@ func getDetails(c *gin.Context) {
 			RepoID string `json:"repo_id" binding:"required"`
 			ID     string `json:"id"      binding:"required"`
 		}
+
+		DeResp DetailRespon
 	)
 
-	var DeResp DetailRespon
-
 	DetailNow := time.Now()
-	interval := DetailNow.Sub(DetailTime)
+	interval := DetailNow.Sub(detailTime)
 	timer, _ := time.ParseDuration("1h")
 
 	err := c.ShouldBind(&detail)
@@ -126,11 +116,12 @@ func getDetails(c *gin.Context) {
 			}
 
 			dr.Store(detail.ID, DeResp)
-			DetailTime = time.Now()
+			detailTime = time.Now()
 
 			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "details": DeResp})
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "details": val})
 		return
 	}
@@ -143,7 +134,8 @@ func getDetails(c *gin.Context) {
 	}
 
 	dr.Store(detail.ID, DeResp)
-	DetailTime = time.Now()
+	detailTime = time.Now()
+
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "details": DeResp})
 
 }
@@ -160,7 +152,7 @@ func getRepo(c *gin.Context) {
 	)
 
 	GroupNow := time.Now()
-	interval := GroupNow.Sub(GroupTime)
+	interval := GroupNow.Sub(groupTime)
 	timer, _ := time.ParseDuration("1h")
 
 	err := c.ShouldBind(&Group)
@@ -189,7 +181,7 @@ func getRepo(c *gin.Context) {
 			}
 
 			gr.Store(Group.GroupID, Resps)
-			GroupTime = time.Now()
+			groupTime = time.Now()
 
 			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Resps})
 			return
@@ -213,7 +205,7 @@ func getRepo(c *gin.Context) {
 	}
 
 	gr.Store(Group.GroupID, Resps)
-	GroupTime = time.Now()
+	groupTime = time.Now()
 
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Resps})
 }
@@ -226,7 +218,7 @@ func getRecommendList(c *gin.Context) {
 	)
 
 	ListNow := time.Now()
-	interval := ListNow.Sub(ListTime)
+	interval := ListNow.Sub(likeListTime)
 	timer, _ := time.ParseDuration("1h")
 
 	val, ok := likeMap.Load(ArticleRepoID)
@@ -250,7 +242,7 @@ func getRecommendList(c *gin.Context) {
 			}
 
 			likeMap.Store(ArticleRepoID, Resps)
-			ListTime = time.Now()
+			likeListTime = time.Now()
 
 			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "like_lists": Resps})
 			return
@@ -278,7 +270,7 @@ func getRecommendList(c *gin.Context) {
 	}
 
 	likeMap.Store(ArticleRepoID, Resps)
-	ListTime = time.Now()
+	likeListTime = time.Now()
 
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "like_lists": Resps})
 }
@@ -291,7 +283,7 @@ func getLastestList(c *gin.Context) {
 	)
 
 	ListNow := time.Now()
-	interval := ListNow.Sub(ListTime)
+	interval := ListNow.Sub(lastListTime)
 	timer, _ := time.ParseDuration("1h")
 
 	val, ok := lastMap.Load(ArticleRepoID)
@@ -316,7 +308,7 @@ func getLastestList(c *gin.Context) {
 			}
 
 			lastMap.Store(ArticleRepoID, Resps)
-			ListTime = time.Now()
+			lastListTime = time.Now()
 
 			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
 			return
@@ -345,7 +337,7 @@ func getLastestList(c *gin.Context) {
 	}
 
 	lastMap.Store(ArticleRepoID, Resps)
-	ListTime = time.Now()
+	lastListTime = time.Now()
 
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
 }
@@ -358,7 +350,7 @@ func getAllList(c *gin.Context) {
 	)
 
 	ListNow := time.Now()
-	interval := ListNow.Sub(ListTime)
+	interval := ListNow.Sub(allListTime)
 	timer, _ := time.ParseDuration("1h")
 
 	val, ok := allMap.Load(ArticleRepoID)
@@ -380,7 +372,7 @@ func getAllList(c *gin.Context) {
 			}
 
 			allMap.Store(ArticleRepoID, Resps)
-			ListTime = time.Now()
+			allListTime = time.Now()
 
 			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "all_lists": Resps})
 			return
@@ -406,14 +398,13 @@ func getAllList(c *gin.Context) {
 	}
 
 	allMap.Store(ArticleRepoID, Resps)
-	ListTime = time.Now()
+	allListTime = time.Now()
 
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "all_lists": Resps})
 }
 
 func callAPI(c *gin.Context, url string, obj interface{}) error {
 	request, err := http.NewRequest("GET", url, nil)
-
 	if err != nil {
 		return err
 	}
