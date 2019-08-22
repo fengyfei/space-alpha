@@ -12,20 +12,20 @@ import (
 )
 
 var (
-	squareMap, columnCatalogMap, imageMap, lr, columnListMap, contentMap sync.Map
+	squareMap, columnCatalogMap, columnCoverMap, lr, columnListMap, contentMap sync.Map
 
-	listTime, contentTime, columnListTime, squareListTime, columnCatalogTime, imageListTime time.Time
+	listTime, contentTime, columnListTime, squareListTime, columnCatalogTime, columnCoverTime time.Time
 )
 
 // RegisterRouter -
 func RegisterRouter(r gin.IRouter) {
+	r.GET("/content", getContent)
+
 	r.GET("/square/list", getSquareList)
 
 	r.GET("/column/list", getColumnList)
 	r.GET("/column/catalog", getColumnCatalog)
-	r.GET("/column/content", getContent)
-
-	r.GET("/image/list", getImageList)
+	r.GET("/column/cover", getColumnCover)
 }
 
 func getList(c *gin.Context) {
@@ -91,7 +91,7 @@ func getContent(c *gin.Context) {
 			ID     string `json:"id"      binding:"required"`
 		}
 
-		Resp DetailRespon
+		Resp ContentRespon
 	)
 
 	DetailNow := time.Now()
@@ -105,7 +105,7 @@ func getContent(c *gin.Context) {
 		return
 	}
 
-	url := fmt.Sprintf(DetailURL, content.RepoID, content.ID)
+	url := fmt.Sprintf(ContentURL, content.RepoID, content.ID)
 
 	val, ok := contentMap.Load(content.ID)
 	if ok {
@@ -166,7 +166,7 @@ func getColumnList(c *gin.Context) {
 			}
 
 			for _, v := range Repo.Repo.Data {
-				if v.Description == "column" {
+				if v.Description == "专栏" {
 					Resp.ID = v.ID
 					Resp.Name = v.Name
 					Resp.Update = v.UpdatedAt
@@ -193,7 +193,7 @@ func getColumnList(c *gin.Context) {
 	}
 
 	for _, v := range Repo.Repo.Data {
-		if v.Description == "column" {
+		if v.Description == "专栏" {
 			Resp.ID = v.ID
 			Resp.Name = v.Name
 			Resp.Update = v.UpdatedAt
@@ -218,7 +218,7 @@ func getSquareList(c *gin.Context) {
 	interval := ListNow.Sub(squareListTime)
 	timer, _ := time.ParseDuration("1h")
 
-	url := fmt.Sprintf(ListURL, GroupID)
+	url := fmt.Sprintf(ListURL, SquareRepoID)
 
 	val, ok := squareMap.Load(SquareRepoID)
 	if ok {
@@ -237,6 +237,7 @@ func getSquareList(c *gin.Context) {
 					Resp.Cover = v.Cover
 					Resp.LikesCount = v.LikesCount
 					Resp.Update = v.UpdatedAt
+					Resp.Description = v.Description
 					Resps = append(Resps, Resp)
 				}
 			}
@@ -266,6 +267,7 @@ func getSquareList(c *gin.Context) {
 			Resp.Cover = v.Cover
 			Resp.LikesCount = v.LikesCount
 			Resp.Update = v.UpdatedAt
+			Resp.Description = v.Description
 			Resps = append(Resps, Resp)
 		}
 	}
@@ -306,12 +308,13 @@ func getColumnCatalog(c *gin.Context) {
 			err := callAPI(c, url, &RepoResp)
 			if err != nil {
 				c.Error(err)
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "last_lists": val})
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "column_catalog": val})
 				return
 			}
 
 			for _, v := range RepoResp.List.Data {
 				if v.Status > 0 {
+					Resp.ID = v.ID
 					Resp.Title = v.Title
 					Resp.Cover = v.Cover
 					Resp.Update = v.PublishedAt
@@ -322,11 +325,11 @@ func getColumnCatalog(c *gin.Context) {
 			columnCatalogMap.Store(column.RepoID, Resps)
 			columnCatalogTime = time.Now()
 
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_catalog": Resps})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": val})
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_catalog": val})
 		return
 	}
 
@@ -339,6 +342,7 @@ func getColumnCatalog(c *gin.Context) {
 
 	for _, v := range RepoResp.List.Data {
 		if v.Status > 0 {
+			Resp.ID = v.ID
 			Resp.Title = v.Title
 			Resp.Cover = v.Cover
 			Resp.Update = v.PublishedAt
@@ -349,29 +353,29 @@ func getColumnCatalog(c *gin.Context) {
 	columnCatalogMap.Store(column.RepoID, Resps)
 	columnCatalogTime = time.Now()
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_catalog": Resps})
 }
 
-func getImageList(c *gin.Context) {
+func getColumnCover(c *gin.Context) {
 	var (
 		RepoResp ListRespon
-		Resp     RespImage
-		Resps    []RespImage
+		Resp     RespColumnCover
+		Resps    []RespColumnCover
 	)
 
 	ListNow := time.Now()
-	interval := ListNow.Sub(imageListTime)
+	interval := ListNow.Sub(columnCoverTime)
 	timer, _ := time.ParseDuration("1h")
 
-	url := fmt.Sprintf(ListURL, ImageRepoID)
+	url := fmt.Sprintf(ListURL, CoverRepoID)
 
-	val, ok := imageMap.Load(ImageRepoID)
+	val, ok := columnCoverMap.Load(CoverRepoID)
 	if ok {
 		if interval > timer {
 			err := callAPI(c, url, &RepoResp)
 			if err != nil {
 				c.Error(err)
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "image_lists": val})
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "column_cover": val})
 				return
 			}
 
@@ -384,14 +388,14 @@ func getImageList(c *gin.Context) {
 				}
 			}
 
-			imageMap.Store(ImageRepoID, Resps)
-			imageListTime = time.Now()
+			columnCoverMap.Store(CoverRepoID, Resps)
+			columnCoverTime = time.Now()
 
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "image_lists": Resps})
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_cover": Resps})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "image_lists": val})
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_cover": val})
 		return
 	}
 
@@ -406,14 +410,15 @@ func getImageList(c *gin.Context) {
 		if v.Status > 0 {
 			Resp.ID = v.ID
 			Resp.Title = v.Title
+			Resp.Cover = v.Cover
 			Resps = append(Resps, Resp)
 		}
 	}
 
-	imageMap.Store(ImageRepoID, Resps)
-	imageListTime = time.Now()
+	columnCoverMap.Store(CoverRepoID, Resps)
+	columnCoverTime = time.Now()
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "image_lists": Resps})
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_cover": Resps})
 }
 
 func callAPI(c *gin.Context, url string, obj interface{}) error {
