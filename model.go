@@ -2,21 +2,6 @@ package main
 
 import "time"
 
-var (
-	// Lastest -
-	Lastest, _ = time.ParseDuration("48h")
-	// ArticleRepoID -
-	ArticleRepoID = 339662
-	// DetailURL -
-	DetailURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/details?RepoID=%s&ID=%s"
-	// ListURL -
-	ListURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/list?RepoID=%s"
-	// RecommendListURL -
-	RecommendListURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/list?RepoID=339662"
-	// RepoURL -
-	RepoURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/repo?GroupID=%s"
-)
-
 // ListRespon -
 type ListRespon struct {
 	List struct {
@@ -160,62 +145,72 @@ type DetailRespon struct {
 type RepoResp struct {
 	Repo struct {
 		Data []struct {
-			ID               int    `json:"id"`
-			Type             string `json:"type"`
-			Slug             string `json:"slug"`
-			Name             string `json:"name"`
-			UserID           int    `json:"user_id"`
-			Description      string `json:"description"`
-			CreatorID        int    `json:"creator_id"`
-			Public           int    `json:"public"`
-			ItemsCount       int    `json:"items_count"`
-			LikesCount       int    `json:"likes_count"`
-			WatchesCount     int    `json:"watches_count"`
-			ContentUpdatedAt string `json:"content_updated_at"`
-			UpdatedAt        string `json:"updated_at"`
-			CreatedAt        string `json:"created_at"`
-			Namespace        string `json:"namespace"`
+			ID               int       `json:"id"`
+			Type             string    `json:"type"`
+			Slug             string    `json:"slug"`
+			Name             string    `json:"name"`
+			UserID           int       `json:"user_id"`
+			Description      string    `json:"description"`
+			CreatorID        int       `json:"creator_id"`
+			Public           int       `json:"public"`
+			ItemsCount       int       `json:"items_count"`
+			LikesCount       int       `json:"likes_count"`
+			WatchesCount     int       `json:"watches_count"`
+			ContentUpdatedAt time.Time `json:"content_updated_at"`
+			UpdatedAt        time.Time `json:"updated_at"`
+			CreatedAt        time.Time `json:"created_at"`
+			Namespace        string    `json:"namespace"`
 			User             struct {
-				ID               int    `json:"id"`
-				Type             string `json:"type"`
-				Login            string `json:"login"`
-				Name             string `json:"name"`
-				Description      string `json:"description"`
-				AvatarURL        string `json:"avatar_url"`
-				LargeAvatarURL   string `json:"large_avatar_url"`
-				MediumAvatarURL  string `json:"medium_avatar_url"`
-				SmallAvatarURL   string `json:"small_avatar_url"`
-				BooksCount       int    `json:"books_count"`
-				PublicBooksCount int    `json:"public_books_count"`
-				FollowersCount   int    `json:"followers_count"`
-				FollowingCount   int    `json:"following_count"`
-				CreatedAt        string `json:"created_at"`
-				UpdatedAt        string `json:"updated_at"`
-				Serializer       string `json:"_serializer"`
+				ID               int       `json:"id"`
+				Type             string    `json:"type"`
+				Login            string    `json:"login"`
+				Name             string    `json:"name"`
+				Description      string    `json:"description"`
+				AvatarURL        string    `json:"avatar_url"`
+				LargeAvatarURL   string    `json:"large_avatar_url"`
+				MediumAvatarURL  string    `json:"medium_avatar_url"`
+				SmallAvatarURL   string    `json:"small_avatar_url"`
+				BooksCount       int       `json:"books_count"`
+				PublicBooksCount int       `json:"public_books_count"`
+				FollowersCount   int       `json:"followers_count"`
+				FollowingCount   int       `json:"following_count"`
+				CreatedAt        time.Time `json:"created_at"`
+				UpdatedAt        time.Time `json:"updated_at"`
+				Serializer       string    `json:"_serializer"`
 			} `json:"user"`
 			Serializer string `json:"_serializer"`
 		} `json:"data"`
 	} `json:"repo"`
+	Status int `json:"status"`
 }
 
 //RespRepo -
 type RespRepo struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID     int       `json:"id"`
+	Name   string    `json:"name"`
+	Update time.Time `json:"update"`
 }
 
-// RespRecommendList -
-type RespRecommendList struct {
-	Title       string `json:"title"`
-	Cover       string `json:"cover"`
-	LikesCount  int    `json:"likes_count"`
-	Description string `json:"description"`
+// RespSquareList -
+type RespSquareList struct {
+	ID         int       `json:"id"`
+	Title      string    `json:"title"`
+	Cover      string    `json:"cover"`
+	LikesCount int       `json:"likes_count"`
+	Update     time.Time `json:"update"`
 }
 
-// RespLastestList -
-type RespLastestList struct {
-	Title       string    `json:"title"`
-	Cover       string    `json:"cover"`
-	Date        time.Time `json:"date"`
-	Description string    `json:"description"`
+// RespImage -
+type RespImage struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	Cover string `json:"cover"`
+}
+
+//RespColumn -
+type RespColumn struct {
+	ID     int       `json:"id"`
+	Title  string    `json:"title"`
+	Cover  string    `json:"cover"`
+	Update time.Time `json:"update"`
 }

@@ -12,18 +12,20 @@ import (
 )
 
 var (
-	likeMap, lastMap, allMap, lr, gr, dr sync.Map
+	squareMap, columnCatalogMap, imageMap, lr, columnListMap, contentMap sync.Map
 
-	listTime, detailTime, groupTime, likeListTime, lastListTime, allListTime time.Time
+	listTime, contentTime, columnListTime, squareListTime, columnCatalogTime, imageListTime time.Time
 )
 
 // RegisterRouter -
 func RegisterRouter(r gin.IRouter) {
-	r.GET("/list/recommend", getRecommendList)
-	r.GET("/list/lastest", getLastestList)
-	r.GET("/list/all", getAllList)
-	r.GET("/getdetails", getDetails)
-	r.GET("/getrepo", getRepo)
+	r.GET("/square/list", getSquareList)
+
+	r.GET("/column/list", getColumnList)
+	r.GET("/column/catalog", getColumnCatalog)
+	r.GET("/column/content", getContent)
+
+	r.GET("/image/list", getImageList)
 }
 
 func getList(c *gin.Context) {
@@ -32,7 +34,7 @@ func getList(c *gin.Context) {
 			RepoID string `json:"repo_id" binding:"required"`
 		}
 
-		RepoResp ListRespon
+		Resp ListRespon
 	)
 
 	ListNow := time.Now()
@@ -51,21 +53,280 @@ func getList(c *gin.Context) {
 	val, ok := lr.Load(list.RepoID)
 	if ok {
 		if interval > timer {
-			err := callAPI(c, url, &RepoResp)
+			err := callAPI(c, url, &Resp)
 			if err != nil {
 				c.Error(err)
 				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "lists": val})
 				return
 			}
 
-			lr.Store(list.RepoID, RepoResp)
+			lr.Store(list.RepoID, Resp)
 			listTime = time.Now()
 
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": RepoResp})
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": Resp})
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": val})
+		return
+	}
+
+	err = callAPI(c, url, &Resp)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
+		return
+	}
+
+	lr.Store(list.RepoID, Resp)
+	listTime = time.Now()
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": Resp})
+}
+
+func getContent(c *gin.Context) {
+	var (
+		content struct {
+			RepoID string `json:"repo_id" binding:"required"`
+			ID     string `json:"id"      binding:"required"`
+		}
+
+		Resp DetailRespon
+	)
+
+	DetailNow := time.Now()
+	interval := DetailNow.Sub(contentTime)
+	timer, _ := time.ParseDuration("1h")
+
+	err := c.ShouldBind(&content)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusNotAcceptable, gin.H{"status": http.StatusNotAcceptable})
+		return
+	}
+
+	url := fmt.Sprintf(DetailURL, content.RepoID, content.ID)
+
+	val, ok := contentMap.Load(content.ID)
+	if ok {
+		if interval > timer {
+			err := callAPI(c, url, &Resp)
+			if err != nil {
+				c.Error(err)
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "content": val})
+				return
+			}
+
+			contentMap.Store(content.ID, Resp)
+			contentTime = time.Now()
+
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "content": Resp})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "content": val})
+		return
+	}
+
+	err = callAPI(c, url, &Resp)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway})
+		return
+	}
+
+	contentMap.Store(content.ID, Resp)
+	contentTime = time.Now()
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "content": Resp})
+
+}
+
+func getColumnList(c *gin.Context) {
+	var (
+		Repo  RepoResp
+		Resp  RespRepo
+		Resps []RespRepo
+	)
+
+	GroupNow := time.Now()
+	interval := GroupNow.Sub(columnListTime)
+	timer, _ := time.ParseDuration("1h")
+
+	url := fmt.Sprintf(RepoURL, GroupID)
+
+	val, ok := columnListMap.Load(GroupID)
+	if ok {
+		if interval > timer {
+			err := callAPI(c, url, &Repo)
+			if err != nil {
+				c.Error(err)
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "column_list": val})
+				return
+			}
+
+			for _, v := range Repo.Repo.Data {
+				if v.Description == "column" {
+					Resp.ID = v.ID
+					Resp.Name = v.Name
+					Resp.Update = v.UpdatedAt
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			columnListMap.Store(GroupID, Resps)
+			columnListTime = time.Now()
+
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_list": Resps})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_list": val})
+		return
+	}
+
+	err := callAPI(c, url, &Repo)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway})
+		return
+	}
+
+	for _, v := range Repo.Repo.Data {
+		if v.Description == "column" {
+			Resp.ID = v.ID
+			Resp.Name = v.Name
+			Resp.Update = v.UpdatedAt
+			Resps = append(Resps, Resp)
+		}
+	}
+
+	columnListMap.Store(GroupID, Resps)
+	columnListTime = time.Now()
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_list": Resps})
+}
+
+func getSquareList(c *gin.Context) {
+	var (
+		RepoResp ListRespon
+		Resp     RespSquareList
+		Resps    []RespSquareList
+	)
+
+	ListNow := time.Now()
+	interval := ListNow.Sub(squareListTime)
+	timer, _ := time.ParseDuration("1h")
+
+	url := fmt.Sprintf(ListURL, GroupID)
+
+	val, ok := squareMap.Load(SquareRepoID)
+	if ok {
+		if interval > timer {
+			err := callAPI(c, url, &RepoResp)
+			if err != nil {
+				c.Error(err)
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "square_list": val})
+				return
+			}
+
+			for _, v := range RepoResp.List.Data {
+				if v.Status > 0 {
+					Resp.ID = v.ID
+					Resp.Title = v.Title
+					Resp.Cover = v.Cover
+					Resp.LikesCount = v.LikesCount
+					Resp.Update = v.UpdatedAt
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			squareMap.Store(SquareRepoID, Resps)
+			squareListTime = time.Now()
+
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "square_list": Resps})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "square_list": val})
+		return
+	}
+
+	err := callAPI(c, url, &RepoResp)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
+		return
+	}
+
+	for _, v := range RepoResp.List.Data {
+		if v.Status > 0 {
+			Resp.ID = v.ID
+			Resp.Title = v.Title
+			Resp.Cover = v.Cover
+			Resp.LikesCount = v.LikesCount
+			Resp.Update = v.UpdatedAt
+			Resps = append(Resps, Resp)
+		}
+	}
+
+	squareMap.Store(SquareRepoID, Resps)
+	squareListTime = time.Now()
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "square_list": Resps})
+}
+
+func getColumnCatalog(c *gin.Context) {
+	var (
+		column struct {
+			RepoID string `json:"repo_id" binding:"required"`
+		}
+
+		RepoResp ListRespon
+		Resp     RespColumn
+		Resps    []RespColumn
+	)
+
+	ListNow := time.Now()
+	interval := ListNow.Sub(columnCatalogTime)
+	timer, _ := time.ParseDuration("1h")
+
+	err := c.ShouldBind(&column)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusNotAcceptable, gin.H{"status": http.StatusNotAcceptable})
+		return
+	}
+
+	url := fmt.Sprintf(ListURL, column.RepoID)
+
+	val, ok := columnCatalogMap.Load(column.RepoID)
+	if ok {
+		if interval > timer {
+			err := callAPI(c, url, &RepoResp)
+			if err != nil {
+				c.Error(err)
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "last_lists": val})
+				return
+			}
+
+			for _, v := range RepoResp.List.Data {
+				if v.Status > 0 {
+					Resp.Title = v.Title
+					Resp.Cover = v.Cover
+					Resp.Update = v.PublishedAt
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			columnCatalogMap.Store(column.RepoID, Resps)
+			columnCatalogTime = time.Now()
+
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": val})
 		return
 	}
 
@@ -76,313 +337,65 @@ func getList(c *gin.Context) {
 		return
 	}
 
-	lr.Store(list.RepoID, RepoResp)
-	listTime = time.Now()
-
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": RepoResp})
-}
-
-func getDetails(c *gin.Context) {
-	var (
-		detail struct {
-			RepoID string `json:"repo_id" binding:"required"`
-			ID     string `json:"id"      binding:"required"`
-		}
-
-		DeResp DetailRespon
-	)
-
-	DetailNow := time.Now()
-	interval := DetailNow.Sub(detailTime)
-	timer, _ := time.ParseDuration("1h")
-
-	err := c.ShouldBind(&detail)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusNotAcceptable, gin.H{"status": http.StatusNotAcceptable})
-		return
-	}
-
-	url := fmt.Sprintf(DetailURL, detail.RepoID, detail.ID)
-
-	val, ok := dr.Load(detail.ID)
-	if ok {
-		if interval > timer {
-			err := callAPI(c, url, &DeResp)
-			if err != nil {
-				c.Error(err)
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "details": val})
-				return
-			}
-
-			dr.Store(detail.ID, DeResp)
-			detailTime = time.Now()
-
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "details": DeResp})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "details": val})
-		return
-	}
-
-	err = callAPI(c, url, &DeResp)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway})
-		return
-	}
-
-	dr.Store(detail.ID, DeResp)
-	detailTime = time.Now()
-
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "details": DeResp})
-
-}
-
-func getRepo(c *gin.Context) {
-	var (
-		Group struct {
-			GroupID string `json:"group_id" binding:"required"`
-		}
-
-		Repo  RepoResp
-		Resp  RespRepo
-		Resps []RespRepo
-	)
-
-	GroupNow := time.Now()
-	interval := GroupNow.Sub(groupTime)
-	timer, _ := time.ParseDuration("1h")
-
-	err := c.ShouldBind(&Group)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusNotAcceptable, gin.H{"status": http.StatusNotAcceptable})
-		return
-	}
-
-	url := fmt.Sprintf(RepoURL, Group.GroupID)
-
-	val, ok := gr.Load(Group.GroupID)
-	if ok {
-		if interval > timer {
-			err := callAPI(c, url, &Repo)
-			if err != nil {
-				c.Error(err)
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "group_repos": val})
-				return
-			}
-
-			for _, v := range Repo.Repo.Data {
-				Resp.ID = v.ID
-				Resp.Name = v.Name
-				Resps = append(Resps, Resp)
-			}
-
-			gr.Store(Group.GroupID, Resps)
-			groupTime = time.Now()
-
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Resps})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": val})
-		return
-	}
-
-	err = callAPI(c, url, &Repo)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway})
-		return
-	}
-
-	for _, v := range Repo.Repo.Data {
-		Resp.ID = v.ID
-		Resp.Name = v.Name
-		Resps = append(Resps, Resp)
-	}
-
-	gr.Store(Group.GroupID, Resps)
-	groupTime = time.Now()
-
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "group_repos": Resps})
-}
-
-func getRecommendList(c *gin.Context) {
-	var (
-		RepoResp ListRespon
-		Resp     RespRecommendList
-		Resps    []RespRecommendList
-	)
-
-	ListNow := time.Now()
-	interval := ListNow.Sub(likeListTime)
-	timer, _ := time.ParseDuration("1h")
-
-	val, ok := likeMap.Load(ArticleRepoID)
-	if ok {
-		if interval > timer {
-			err := callAPI(c, RecommendListURL, &RepoResp)
-			if err != nil {
-				c.Error(err)
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "like_lists": val})
-				return
-			}
-
-			for _, v := range RepoResp.List.Data {
-				if v.LikesCount > 0 && v.Status > 0 {
-					Resp.Title = v.Title
-					Resp.Cover = v.Cover
-					Resp.LikesCount = v.LikesCount
-					Resp.Description = v.CustomDescription
-					Resps = append(Resps, Resp)
-				}
-			}
-
-			likeMap.Store(ArticleRepoID, Resps)
-			likeListTime = time.Now()
-
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "like_lists": Resps})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "like_lists": val})
-		return
-	}
-
-	err := callAPI(c, RecommendListURL, &RepoResp)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
-		return
-	}
-
 	for _, v := range RepoResp.List.Data {
-		if v.LikesCount > 0 && v.Status > 0 {
+		if v.Status > 0 {
 			Resp.Title = v.Title
 			Resp.Cover = v.Cover
-			Resp.LikesCount = v.LikesCount
-			Resp.Description = v.Description
+			Resp.Update = v.PublishedAt
 			Resps = append(Resps, Resp)
 		}
 	}
 
-	likeMap.Store(ArticleRepoID, Resps)
-	likeListTime = time.Now()
-
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "like_lists": Resps})
-}
-
-func getLastestList(c *gin.Context) {
-	var (
-		RepoResp ListRespon
-		Resp     RespLastestList
-		Resps    []RespLastestList
-	)
-
-	ListNow := time.Now()
-	interval := ListNow.Sub(lastListTime)
-	timer, _ := time.ParseDuration("1h")
-
-	val, ok := lastMap.Load(ArticleRepoID)
-	if ok {
-		if interval > timer {
-			err := callAPI(c, RecommendListURL, &RepoResp)
-			if err != nil {
-				c.Error(err)
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "last_lists": val})
-				return
-			}
-
-			for _, v := range RepoResp.List.Data {
-				t := ListNow.Sub(v.PublishedAt)
-				if t < Lastest && v.Status > 0 {
-					Resp.Title = v.Title
-					Resp.Cover = v.Cover
-					Resp.Date = v.PublishedAt
-					Resp.Description = v.Description
-					Resps = append(Resps, Resp)
-				}
-			}
-
-			lastMap.Store(ArticleRepoID, Resps)
-			lastListTime = time.Now()
-
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": val})
-		return
-	}
-
-	err := callAPI(c, RecommendListURL, &RepoResp)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
-		return
-	}
-
-	for _, v := range RepoResp.List.Data {
-		t := ListNow.Sub(v.PublishedAt)
-		if t < Lastest && v.Status > 0 {
-			Resp.Title = v.Title
-			Resp.Cover = v.Cover
-			Resp.Date = v.PublishedAt
-			Resp.Description = v.Description
-			Resps = append(Resps, Resp)
-		}
-	}
-
-	lastMap.Store(ArticleRepoID, Resps)
-	lastListTime = time.Now()
+	columnCatalogMap.Store(column.RepoID, Resps)
+	columnCatalogTime = time.Now()
 
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "last_lists": Resps})
 }
 
-func getAllList(c *gin.Context) {
+func getImageList(c *gin.Context) {
 	var (
 		RepoResp ListRespon
-		Resp     RespRepo
-		Resps    []RespRepo
+		Resp     RespImage
+		Resps    []RespImage
 	)
 
 	ListNow := time.Now()
-	interval := ListNow.Sub(allListTime)
+	interval := ListNow.Sub(imageListTime)
 	timer, _ := time.ParseDuration("1h")
 
-	val, ok := allMap.Load(ArticleRepoID)
+	url := fmt.Sprintf(ListURL, ImageRepoID)
+
+	val, ok := imageMap.Load(ImageRepoID)
 	if ok {
 		if interval > timer {
-			err := callAPI(c, RecommendListURL, &RepoResp)
+			err := callAPI(c, url, &RepoResp)
 			if err != nil {
 				c.Error(err)
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "all_lists": val})
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "image_lists": val})
 				return
 			}
 
 			for _, v := range RepoResp.List.Data {
 				if v.Status > 0 {
 					Resp.ID = v.ID
-					Resp.Name = v.Title
+					Resp.Title = v.Title
+					Resp.Cover = v.Cover
 					Resps = append(Resps, Resp)
 				}
 			}
 
-			allMap.Store(ArticleRepoID, Resps)
-			allListTime = time.Now()
+			imageMap.Store(ImageRepoID, Resps)
+			imageListTime = time.Now()
 
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "all_lists": Resps})
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "image_lists": Resps})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "all_lists": val})
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "image_lists": val})
 		return
 	}
 
-	err := callAPI(c, RecommendListURL, &RepoResp)
+	err := callAPI(c, url, &RepoResp)
 	if err != nil {
 		c.Error(err)
 		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
@@ -392,15 +405,15 @@ func getAllList(c *gin.Context) {
 	for _, v := range RepoResp.List.Data {
 		if v.Status > 0 {
 			Resp.ID = v.ID
-			Resp.Name = v.Title
+			Resp.Title = v.Title
 			Resps = append(Resps, Resp)
 		}
 	}
 
-	allMap.Store(ArticleRepoID, Resps)
-	allListTime = time.Now()
+	imageMap.Store(ImageRepoID, Resps)
+	imageListTime = time.Now()
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "all_lists": Resps})
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "image_lists": Resps})
 }
 
 func callAPI(c *gin.Context, url string, obj interface{}) error {
