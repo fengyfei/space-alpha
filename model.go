@@ -182,10 +182,10 @@ type RepoResp struct {
 	} `json:"repo"`
 }
 
-//RespRepo -
-type RespRepo struct {
+//RespColumnList -
+type RespColumnList struct {
 	ID     int       `json:"id"`
-	Name   string    `json:"name"`
+	Title  string    `json:"title"`
 	Update time.Time `json:"update"`
 }
 
@@ -206,10 +206,23 @@ type RespColumnCover struct {
 	Cover string `json:"cover"`
 }
 
-//RespColumn -
-type RespColumn struct {
+//RespColumnCatalog -
+type RespColumnCatalog struct {
 	ID     int       `json:"id"`
 	Title  string    `json:"title"`
 	Cover  string    `json:"cover"`
 	Update time.Time `json:"update"`
+}
+
+//RespShelfList -
+type RespShelfList struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+}
+
+//RespShelfCatalog -
+type RespShelfCatalog struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	Cover string `json:"cover"`
 }
