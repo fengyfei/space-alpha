@@ -14,7 +14,7 @@ import (
 var (
 	firstShelfMap, squareMap, columnCatalogMap, columnCoverMap, shelfListMap, columnListMap, contentMap sync.Map
 
-	shelfListTime, contentTime, columnListTime, squareListTime, columnCatalogTime, columnCoverTime time.Time
+	shelfListTime, contentTime, columnListTime, squareListTime, columnCatalogTime, columnCoverTime, firstShelfTime time.Time
 )
 
 // RegisterRouter -
@@ -30,84 +30,6 @@ func RegisterRouter(r gin.IRouter) {
 	r.GET("/column/cover", getColumnCover)
 }
 
-/*func getShelfList(c *gin.Context, ch chan interface{}) {
-	var (
-		List  RepoResp
-		Resp  RespShelfList
-		Resps []RespShelfList
-
-		//ch = make(chan interface{}, 1)
-	)
-
-	ListNow := time.Now()
-	interval := ListNow.Sub(shelfListTime)
-	timer, _ := time.ParseDuration("1h")
-
-	url := fmt.Sprintf(RepoURL, GroupID)
-
-	val, ok := shelfListMap.Load(GroupID)
-	if ok {
-		if interval > timer {
-			go getShelfCatalog(c)
-			vall, _ := firstShelfMap.Load(FirstShelfRepoID)
-			err := callAPI(c, url, &List)
-			if err != nil {
-				c.Error(err)
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "lists": val, "first": vall})
-				return
-			}
-
-			for _, v := range List.Repo.Data {
-				if v.Description == Bookshelf {
-					Resp.ID = v.ID
-					Resp.Title = v.Name
-					Resps = append(Resps, Resp)
-				}
-			}
-
-			shelfListMap.Store(GroupID, Resps)
-			shelfListTime = time.Now()
-
-			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": Resps})
-			return
-		}
-		vall, _ := firstShelfMap.Load(FirstShelfRepoID)
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": val, "first": vall})
-		return
-	}
-
-	go getShelfCatalog(c)
-		s := <-ch
-		if s == errGet {
-			c.Error(errGet)
-			c.JSON(http.StatusFailedDependency, gin.H{"status": http.StatusFailedDependency})
-			return
-		}
-
-		firstShelfMap.Store(FirstShelfRepoID, s)
-
-	err := callAPI(c, url, &List)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
-		return
-	}
-
-	for _, v := range List.Repo.Data {
-		if v.Description == Bookshelf {
-			Resp.ID = v.ID
-			Resp.Title = v.Name
-			Resps = append(Resps, Resp)
-		}
-	}
-
-	shelfListMap.Store(GroupID, Resps)
-	shelfListTime = time.Now()
-	vall, _ := firstShelfMap.Load(FirstShelfRepoID)
-
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "lists": Resps, "first": vall})
-}*/
-
 func getContent(c *gin.Context) {
 	var (
 		content struct {
@@ -120,7 +42,6 @@ func getContent(c *gin.Context) {
 
 	DetailNow := time.Now()
 	interval := DetailNow.Sub(contentTime)
-	timer, _ := time.ParseDuration("1h")
 
 	err := c.ShouldBind(&content)
 	if err != nil {
@@ -133,7 +54,7 @@ func getContent(c *gin.Context) {
 
 	val, ok := contentMap.Load(content.ID)
 	if ok {
-		if interval > timer {
+		if interval > Timer {
 			err := callAPI(c, url, &Resp)
 			if err != nil {
 				c.Error(err)
@@ -174,13 +95,12 @@ func getColumnList(c *gin.Context) {
 
 	GroupNow := time.Now()
 	interval := GroupNow.Sub(columnListTime)
-	timer, _ := time.ParseDuration("1h")
 
 	url := fmt.Sprintf(RepoURL, GroupID)
 
 	val, ok := columnListMap.Load(GroupID)
 	if ok {
-		if interval > timer {
+		if interval > Timer {
 			err := callAPI(c, url, &Repo)
 			if err != nil {
 				c.Error(err)
@@ -314,7 +234,6 @@ func getColumnCatalog(c *gin.Context) {
 
 	ListNow := time.Now()
 	interval := ListNow.Sub(columnCatalogTime)
-	timer, _ := time.ParseDuration("1h")
 
 	err := c.ShouldBind(&column)
 	if err != nil {
@@ -327,7 +246,7 @@ func getColumnCatalog(c *gin.Context) {
 
 	val, ok := columnCatalogMap.Load(column.RepoID)
 	if ok {
-		if interval > timer {
+		if interval > Timer {
 			err := callAPI(c, url, &RepoResp)
 			if err != nil {
 				c.Error(err)
@@ -444,7 +363,7 @@ func getColumnCover(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_cover": Resps})
 }
 
-func getShelfList(c *gin.Context, ch chan interface{}) {
+func getShelfList(c *gin.Context, ch chan interface{}, interval time.Duration, chCode chan int) {
 	var (
 		List  RepoResp
 		Resp  RespShelfList
@@ -453,10 +372,43 @@ func getShelfList(c *gin.Context, ch chan interface{}) {
 
 	url := fmt.Sprintf(RepoURL, GroupID)
 
+	val, ok := shelfListMap.Load(GroupID)
+	if ok {
+		if interval > Timer {
+			err := callAPI(c, url, &List)
+			if err != nil {
+				c.Error(err)
+				chCode <- http.StatusBadGateway
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "column_catalog": val})
+				return
+			}
+
+			for _, v := range List.Repo.Data {
+				if v.Description == Bookshelf {
+					Resp.ID = v.ID
+					Resp.Title = v.Name
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			shelfListMap.Store(GroupID, Resps)
+			shelfListTime = time.Now()
+
+			chCode <- http.StatusOK
+			ch <- Resps
+			return
+		}
+
+		chCode <- http.StatusOK
+		ch <- val
+		return
+	}
+
 	err := callAPI(c, url, &List)
 	if err != nil {
 		c.Error(err)
-		ch <- errGetList
+		chCode <- http.StatusForbidden
+		return
 	}
 
 	for _, v := range List.Repo.Data {
@@ -467,10 +419,14 @@ func getShelfList(c *gin.Context, ch chan interface{}) {
 		}
 	}
 
+	shelfListMap.Store(GroupID, Resps)
+	shelfListTime = time.Now()
+
+	chCode <- http.StatusOK
 	ch <- Resps
 }
 
-func getFirstShelfRepo(c *gin.Context, ch chan interface{}) {
+func getFirstShelfRepo(c *gin.Context, ch chan interface{}, chCode chan int, interval time.Duration) {
 	var (
 		RepoResp ListRespon
 		Resp     RespShelfCatalog
@@ -479,10 +435,44 @@ func getFirstShelfRepo(c *gin.Context, ch chan interface{}) {
 
 	url := fmt.Sprintf(ListURL, FirstShelfRepoID)
 
+	val, ok := firstShelfMap.Load(FirstShelfRepoID)
+	if ok {
+		if interval > Timer {
+			err := callAPI(c, url, &RepoResp)
+			if err != nil {
+				c.Error(err)
+				chCode <- http.StatusBadGateway
+				ch <- val
+				return
+			}
+
+			for _, v := range RepoResp.List.Data {
+				if v.Status > 0 {
+					Resp.ID = v.ID
+					Resp.Title = v.Title
+					Resp.Cover = v.Cover
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			firstShelfMap.Store(FirstShelfRepoID, Resps)
+			firstShelfTime = time.Now()
+
+			chCode <- http.StatusOK
+			ch <- Resps
+			return
+		}
+
+		chCode <- http.StatusOK
+		ch <- val
+		return
+	}
+
 	err := callAPI(c, url, &RepoResp)
 	if err != nil {
 		c.Error(err)
-		ch <- errGetFirst
+		chCode <- http.StatusForbidden
+		return
 	}
 
 	for _, v := range RepoResp.List.Data {
@@ -493,28 +483,39 @@ func getFirstShelfRepo(c *gin.Context, ch chan interface{}) {
 			Resps = append(Resps, Resp)
 		}
 	}
-	//firstShelfMap.Store(FirstShelfRepoID, Resps)
 
+	firstShelfMap.Store(FirstShelfRepoID, Resps)
+	firstShelfTime = time.Now()
+
+	chCode <- http.StatusOK
 	ch <- Resps
 }
 
 //entrance
 func entrance(c *gin.Context) {
-	var chFirst = make(chan interface{}, 1)
-	var chList = make(chan interface{}, 1)
+	var (
+		chFirst     = make(chan interface{}, 1)
+		chFirstCode = make(chan int, 1)
+		chList      = make(chan interface{}, 1)
+		chListCode  = make(chan int, 1)
+	)
 
-	go getFirstShelfRepo(c, chFirst)
-	firstShelfRepo := <-chFirst
-	if firstShelfRepo == errGetFirst {
-		c.Error(errGetFirst)
-		c.JSON(http.StatusFailedDependency, gin.H{"status": http.StatusFailedDependency})
+	ListNow := time.Now()
+	interval := ListNow.Sub(shelfListTime)
+
+	go getFirstShelfRepo(c, chFirst, chFirstCode, interval)
+
+	firstShelfRepo, firstShelfCode := <-chFirst, <-chFirstCode
+	if firstShelfCode != http.StatusOK {
+		c.JSON(firstShelfCode, gin.H{"status": firstShelfCode})
 		return
 	}
-	go getShelfList(c, chList)
-	shelfList := <-chList
-	if shelfList == errGetList {
-		c.Error(errGetList)
-		c.JSON(http.StatusFailedDependency, gin.H{"status": http.StatusFailedDependency})
+
+	go getShelfList(c, chList, interval, chListCode)
+
+	shelfList, listCode := <-chList, <-chListCode
+	if listCode != http.StatusOK {
+		c.JSON(listCode, gin.H{"status": listCode})
 		return
 	}
 

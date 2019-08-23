@@ -1,6 +1,9 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 const (
 	// SquareRepoID -
@@ -20,6 +23,9 @@ const (
 var (
 	errGetFirst = errors.New("Getting first shelf is wrong")
 	errGetList  = errors.New("Getting shelf list is wrong")
+
+	// Timer -
+	Timer, _ = time.ParseDuration("1h")
 
 	// ContentURL -
 	ContentURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/details?RepoID=%s&ID=%s"
