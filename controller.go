@@ -379,7 +379,6 @@ func getShelfList(c *gin.Context, ch chan interface{}, interval time.Duration, c
 			if err != nil {
 				c.Error(err)
 				chCode <- http.StatusBadGateway
-				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "column_catalog": val})
 				return
 			}
 
@@ -462,7 +461,6 @@ func getFirstShelfRepo(c *gin.Context, ch chan interface{}, chCode chan int, int
 			ch <- Resps
 			return
 		}
-
 		chCode <- http.StatusOK
 		ch <- val
 		return
@@ -519,7 +517,7 @@ func entrance(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_cover": firstShelfRepo, "list": shelfList})
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "first_shelf": firstShelfRepo, "list": shelfList})
 }
 
 func callAPI(c *gin.Context, url string, obj interface{}) error {
