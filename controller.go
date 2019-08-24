@@ -12,16 +12,17 @@ import (
 )
 
 var (
-	firstShelfMap, squareMap, columnCatalogMap, columnCoverMap, shelfListMap, columnListMap, contentMap sync.Map
+	scrollMap, firstShelfMap, squareMap, columnCatalogMap, columnCoverMap, shelfListMap, columnListMap, contentMap sync.Map
 
-	shelfListTime, contentTime, columnListTime, squareListTime, columnCatalogTime, columnCoverTime, firstShelfTime time.Time
+	scrollTime, shelfListTime, contentTime, columnListTime, squareListTime, columnCatalogTime, columnCoverTime time.Time
 )
 
 // RegisterRouter -
 func RegisterRouter(r gin.IRouter) {
 	r.GET("/content", getContent)
 
-	r.GET("/shelf/list", entrance)
+	r.GET("/shelf/list", getShelfList)
+	r.GET("/shelf/scroll", getScroll)
 
 	r.GET("/square/list", getSquareList)
 
@@ -363,7 +364,7 @@ func getColumnCover(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "column_cover": Resps})
 }
 
-func getShelfList(c *gin.Context, ch chan interface{}, interval time.Duration, chCode chan int) {
+func getShelf(c *gin.Context, ch chan interface{}, interval time.Duration, chCode chan int) {
 	var (
 		List  RepoResp
 		Resp  RespShelfList
@@ -455,12 +456,12 @@ func getFirstShelfRepo(c *gin.Context, ch chan interface{}, chCode chan int, int
 			}
 
 			firstShelfMap.Store(FirstShelfRepoID, Resps)
-			firstShelfTime = time.Now()
 
 			chCode <- http.StatusOK
 			ch <- Resps
 			return
 		}
+
 		chCode <- http.StatusOK
 		ch <- val
 		return
@@ -483,14 +484,13 @@ func getFirstShelfRepo(c *gin.Context, ch chan interface{}, chCode chan int, int
 	}
 
 	firstShelfMap.Store(FirstShelfRepoID, Resps)
-	firstShelfTime = time.Now()
 
 	chCode <- http.StatusOK
 	ch <- Resps
 }
 
 //entrance
-func entrance(c *gin.Context) {
+func getShelfList(c *gin.Context) {
 	var (
 		chFirst     = make(chan interface{}, 1)
 		chFirstCode = make(chan int, 1)
@@ -509,7 +509,7 @@ func entrance(c *gin.Context) {
 		return
 	}
 
-	go getShelfList(c, chList, interval, chListCode)
+	go getShelf(c, chList, interval, chListCode)
 
 	shelfList, listCode := <-chList, <-chListCode
 	if listCode != http.StatusOK {
@@ -518,6 +518,70 @@ func entrance(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "first_shelf": firstShelfRepo, "list": shelfList})
+}
+
+func getScroll(c *gin.Context) {
+	var (
+		RepoResp ListRespon
+		Resp     RespShelfCatalog
+		Resps    []RespShelfCatalog
+	)
+
+	ListNow := time.Now()
+	interval := ListNow.Sub(columnCatalogTime)
+
+	url := fmt.Sprintf(ListURL, AboutusRepoID)
+
+	val, ok := scrollMap.Load(AboutusRepoID)
+	if ok {
+		if interval > Timer {
+			err := callAPI(c, url, &RepoResp)
+			if err != nil {
+				c.Error(err)
+				c.JSON(http.StatusBadGateway, gin.H{"status": http.StatusBadGateway, "scroll": val})
+				return
+			}
+
+			for _, v := range RepoResp.List.Data {
+				if v.Status > 0 && v.CustomDescription == "scroll" {
+					Resp.ID = v.ID
+					Resp.Title = v.Title
+					Resp.Cover = v.Cover
+					Resps = append(Resps, Resp)
+				}
+			}
+
+			scrollMap.Store(AboutusRepoID, Resps)
+			scrollTime = time.Now()
+
+			c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "scroll": Resps})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "scroll": val})
+		return
+	}
+
+	err := callAPI(c, url, &RepoResp)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusForbidden, gin.H{"status": http.StatusForbidden})
+		return
+	}
+
+	for _, v := range RepoResp.List.Data {
+		if v.Status > 0 && v.CustomDescription == "scroll" {
+			Resp.ID = v.ID
+			Resp.Title = v.Title
+			Resp.Cover = v.Cover
+			Resps = append(Resps, Resp)
+		}
+	}
+
+	scrollMap.Store(AboutusRepoID, Resps)
+	scrollTime = time.Now()
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "scroll": Resps})
 }
 
 func callAPI(c *gin.Context, url string, obj interface{}) error {

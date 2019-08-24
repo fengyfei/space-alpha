@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"time"
 )
 
@@ -14,6 +13,8 @@ const (
 	GroupID = "334719"
 	// FirstShelfRepoID -
 	FirstShelfRepoID = "302601"
+	// AboutusRepoID -
+	AboutusRepoID = "305107"
 	// Bookshelf -
 	Bookshelf = "书架"
 	// Column -
@@ -21,11 +22,8 @@ const (
 )
 
 var (
-	errGetFirst = errors.New("Getting first shelf is wrong")
-	errGetList  = errors.New("Getting shelf list is wrong")
-
 	// Timer -
-	Timer, _ = time.ParseDuration("1h")
+	Timer = time.Duration(7200000000000)
 
 	// ContentURL -
 	ContentURL = "https://yuque.yangchengkai.now.sh/api/v1/yuque/details?RepoID=%s&ID=%s"
